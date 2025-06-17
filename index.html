@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Quiz Mystique Multi-Niveaux</title>
+  <style>
+    body {
+      background-color: #0e0f11;
+      font-family: 'Georgia', serif;
+      color: #c49a5c;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+      margin: 0;
+    }
+    h1 {
+      margin-bottom: 0.5rem;
+    }
+    #level-indicator {
+      margin-bottom: 1rem;
+    }
+    .grid-wrapper {
+      border: 3px solid #c49a5c;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 1rem;
+      background-color: #1a1a1a;
+    }
+    .grid {
+      display: grid;
+      gap: 10px;
+    }
+    .cell {
+      border: 2px solid #c49a5c;
+      padding: 10px;
+      text-align: center;
+      font-size: 1em;
+      background-color: transparent;
+      color: #c49a5c;
+      cursor: move;
+      border-radius: 6px;
+      transition: background-color 0.3s;
+    }
+    .correct {
+      background-color: #295326;
+      color: #fff;
+    }
+    .btns {
+      margin-top: 1rem;
+    }
+    button {
+      background-color: #c49a5c;
+      color: #0e0f11;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1rem;
+      margin: 5px;
+    }
+    button:hover {
+      background-color: #a8863b;
+    }
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 9999;
+    }
+  </style>
+</head>
+<body>
+  <h1>Quiz : Les 99 Noms d'Allah</h1>
+  <div id="level-indicator">Niveau 1</div>
+  <div class="grid-wrapper">
+    <div class="grid" id="grid"></div>
+  </div>
+  <div class="btns">
+    <button onclick="restartLevel()">🔄 Rejouer</button>
+    <button onclick="nextLevel()" id="nextBtn" style="display:none;">➡️ Niveau Suivant</button>
+  </div>
+  <canvas id="celebration"></canvas>
+
+  <script>
+    const allNames = [
+      "Ar-Rahmān", "Ar-Rahīm", "Al-Malik", "Al-Quddūs", "As-Salām", "Al-Mu’min",
+      "Al-Muhaymin", "Al-‘Azīz", "Al-Jabbār", "Al-Mutakabbir", "Al-Khāliq", "Al-Bāri’",
+      "Al-Musawwir", "Al-Ghaffār", "Al-Qahhār", "Al-Wahhāb", "Ar-Razzāq", "Al-Fattāh",
+      "Al-‘Alīm", "Al-Qābid", "Al-Bāsit", "Al-Khāfid", "Ar-Rāfi‘", "Al-Mu‘izz",
+      "Al-Mudhill", "As-Samī‘", "Al-Basīr", "Al-Hakam", "Al-‘Adl", "Al-Latīf",
+      "Al-Khabīr", "Al-Halīm", "Al-‘Azīm"
+    ];
+
+    const levels = [
+      allNames.slice(0, 4),
+      allNames.slice(0, 9),
+      allNames.slice(0, 16),
+      allNames.slice(0, 25),
+      allNames.slice(0, 33)
+    ];
+
+    let currentLevel = 0;
+    let correctOrder = [];
+    const grid = document.getElementById("grid");
+    const levelIndicator = document.getElementById("level-indicator");
+    const nextBtn = document.getElementById("nextBtn");
+    const canvas = document.getElementById("celebration");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    function launchFireworks() {
+      const particles = [];
+      for (let i = 0; i < 100; i++) {
+        particles.push({
+          x: canvas.width / 2,
+          y: canvas.height / 2,
+          dx: (Math.random() - 0.5) * 8,
+          dy: (Math.random() - 0.5) * 8,
+          life: 100 + Math.random() * 50,
+          color: `hsl(${Math.random() * 360}, 100%, 60%)`
+        });
+      }
+      const interval = setInterval(() => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach((p, i) => {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+          ctx.fillStyle = p.color;
+          ctx.fill();
+          p.x += p.dx;
+          p.y += p.dy;
+          p.life--;
+          if (p.life <= 0) particles.splice(i, 1);
+        });
+        if (particles.length === 0) clearInterval(interval);
+      }, 30);
+    }
+
+    function generateGrid() {
+      const names = levels[currentLevel];
+      levelIndicator.textContent = `Niveau ${currentLevel + 1}`;
+      correctOrder = [...names];
+      const shuffled = [...names];
+      shuffleArray(shuffled);
+      const size = Math.ceil(Math.sqrt(names.length));
+      grid.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+      grid.innerHTML = "";
+      shuffled.forEach(name => {
+        const div = document.createElement("div");
+        div.className = "cell";
+        div.setAttribute("draggable", "true");
+        div.textContent = name;
+        grid.appendChild(div);
+      });
+      enableDrag();
+      nextBtn.style.display = "none";
+    }
+
+    function enableDrag() {
+      let dragged = null;
+      const cells = document.querySelectorAll(".cell");
+
+      cells.forEach(cell => {
+        cell.addEventListener("dragstart", () => {
+          dragged = cell;
+          setTimeout(() => cell.style.display = "none", 0);
+        });
+        cell.addEventListener("dragend", () => {
+          setTimeout(() => {
+            dragged.style.display = "block";
+            dragged = null;
+            checkOrder();
+          }, 0);
+        });
+        cell.addEventListener("dragover", e => e.preventDefault());
+        cell.addEventListener("drop", e => {
+          e.preventDefault();
+          if (dragged !== cell) {
+            const temp = cell.textContent;
+            cell.textContent = dragged.textContent;
+            dragged.textContent = temp;
+          }
+        });
+      });
+    }
+
+    function checkOrder() {
+      const current = Array.from(document.querySelectorAll(".cell")).map(c => c.textContent.trim());
+      let valid = true;
+      current.forEach((txt, i) => {
+        if (txt === correctOrder[i]) {
+          grid.children[i].classList.add("correct");
+        } else {
+          grid.children[i].classList.remove("correct");
+          valid = false;
+        }
+      });
+      if (valid) {
+        launchFireworks();
+        if (currentLevel < levels.length - 1) {
+          nextBtn.style.display = "inline-block";
+        }
+      }
+    }
+
+    function restartLevel() {
+      generateGrid();
+    }
+
+    function nextLevel() {
+      if (currentLevel < levels.length - 1) {
+        currentLevel++;
+        generateGrid();
+      }
+    }
+
+    function shuffleArray(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+    }
+
+    generateGrid();
+  </script>
+</body>
+</html>
